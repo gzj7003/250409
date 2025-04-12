@@ -3,6 +3,7 @@ name: project zjscript
 on:
   schedule:
   - cron: '01 11,15,19,23,3,7 * * *' 
+  workflow_dispatch:
     分支:
       - main
 permissions: write-all  
