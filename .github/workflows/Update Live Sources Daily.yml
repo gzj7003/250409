@@ -2,13 +2,12 @@ name: Update Live Sources Daily
 
 on:
   schedule:
-    - cron: '03 15,19,23,4,7,11 * * *'
+    - cron: '03 15,23,4,9 * * *'
   workflow_dispatch:  # 允许手动触发
 
 jobs:
   update-sources:
     runs-on: ubuntu-latest
-    # 关键修改：赋予写入权限
     permissions:
       contents: write  # 确保 GITHUB_TOKEN 有推送权限
 
@@ -16,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整提交历史（可选）
+          fetch-depth: 0  # 获取完整提交历史以支持rebase
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -68,8 +67,10 @@ jobs:
                   
               except requests.exceptions.RequestException as e:
                   print(f"获取原始直播源时出错: {e}")
+                  exit(1)  # 出错时退出并返回错误代码
               except Exception as e:
                   print(f"发生错误: {e}")
+                  exit(1)
 
           if __name__ == "__main__":
               generate_live_source()
@@ -79,8 +80,26 @@ jobs:
 
       - name: Commit and push changes
         run: |
+          # 配置Git用户
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
+          
+          # 检查是否有文件变更
+          if git diff --quiet --exit-code; then
+            echo "没有文件变更，无需提交"
+            exit 0
+          fi
+          
+          # 添加、提交变更
           git add txt_files/Susaw-sa.txt txt_files/Susaw-sa.m3u
           git commit -m "Auto-update live sources (daily)"
-          git push
+          
+          # 先拉取最新变更并rebase，然后推送
+          git pull --rebase origin main
+          git push origin main
+          
+          # 如果rebase失败，使用强制推送（谨慎使用）
+          if [ $? -ne 0 ]; then
+            echo "常规推送失败，尝试使用--force-with-lease"
+            git push --force-with-lease origin main
+          fi
