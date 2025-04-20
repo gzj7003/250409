@@ -30,36 +30,32 @@ def filter_live_sources():
         print(f"获取直播源失败: {e}")
         return
     
-    # 筛选央视和卫视频道
+    # 筛选所有匹配的线路（不再用break中断）
     filtered_sources = []
     for channel in template_channels:
         for line in live_sources:
             if line.startswith(channel + ","):
-                filtered_sources.append(line)
-                break
+                filtered_sources.append(line)  # 保留所有匹配线路
     
     # 添加苏州地方台
     filtered_sources.extend(suzhou_sources)
     
-    # 获取项目主目录路径（脚本所在目录的上一级）
+    # 获取项目主目录路径
     script_dir = Path(__file__).parent
-    project_root = script_dir.parent  # 主目录
+    project_root = script_dir.parent
     output_dir = project_root / "txt_files"
-    
-    # 创建目录（如果不存在）
     output_dir.mkdir(exist_ok=True)
     
     # 写入文件
+    filtered_sources = list(dict.fromkeys(filtered_sources))  # 去重且保留顺序
     output_path = output_dir / "Susaw-sa.txt"
     with open(output_path, "w", encoding="utf-8") as f:
         f.write("\n".join(filtered_sources))
     
     print(f"文件已保存到: {output_path}")
-    print(f"包含频道数: {len(filtered_sources)} (央视/卫视: {len(template_channels)}, 苏州台: {len(suzhou_sources)})")
+    print(f"共找到 {len(filtered_sources)} 条线路（含 {len(suzhou_sources)} 条苏州台）")
 
 if __name__ == "__main__":
-    # 禁用SSL警告
     import urllib3
     urllib3.disable_warnings()
-    
     filter_live_sources()
