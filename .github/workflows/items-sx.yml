@@ -2,7 +2,7 @@ name: project items-sx
 
 on:
   schedule:
-  - cron: '03 15,2,7,11 * * *'  
+  - cron: '03 22,9 * * *'  
   workflow_dispatch:
     分支:
       - main
