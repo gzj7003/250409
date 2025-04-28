@@ -1,160 +1,146 @@
 import os
-import requests
 import re
 import base64
 import cv2
-import datetime
+import requests
+import concurrent.futures
 from datetime import datetime
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
+# 常量配置
+CONFIG = {
+    "input_dir": "udpsc",
+    "output_dir": "txt_files",
+    "request_headers": {
+        "referer": "https://www.baidu.com/",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36",
+        "cookie": os.getenv("FOFA_COOKIE", "")  # 从环境变量读取cookie
+    },
+    "isp_mapping": {
+        ("北京", "联通"): {"isp_en": "cucc", "org": "China Unicom Beijing Province Network"},
+        ("", "联通"): {"isp_en": "cucc", "org": "CHINA UNICOM China169 Backbone"},
+        ("", "电信"): {"org": "Chinanet", "isp_en": "ctcc"},
+        ("", "移动"): {"org": "China Mobile communications corporation", "isp_en": "cmcc"}
+    },
+    "timeout": 5,
+    "max_retries": 3,
+    "max_workers": 5
+}
 
-files = os.listdir('udpsc')
+def setup_dirs():
+    """创建必要的目录结构"""
+    os.makedirs(CONFIG["input_dir"], exist_ok=True)
+    os.makedirs(CONFIG["output_dir"], exist_ok=True)
 
-files_name = []
+def get_isp_info(province, isp):
+    """获取ISP对应的组织信息"""
+    for (p, i), info in CONFIG["isp_mapping"].items():
+        if (p == province or p == "") and i == isp:
+            return info
+    return {"org": "", "isp_en": ""}
 
+def validate_stream(url, timeout=5):
+    """验证视频流有效性"""
+    try:
+        cap = cv2.VideoCapture(url)
+        if cap.isOpened():
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            cap.release()
+            return width > 0 and height > 0
+        return False
+    except Exception as e:
+        print(f"视频流验证异常：{str(e)}")
+        return False
 
-for file in files:
-    name, extension = os.path.splitext(file)
-    files_name.append(name)
-
-
-provinces_isps = [name for name in files_name if name.count('_') == 1]
-
-
-print(f"本次查询：{provinces_isps}的组播节目") 
-
-keywords = []
-
-for province_isp in provinces_isps:
+def process_file(province_isp):
+    """处理单个省份运营商文件"""
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    province, isp = province_isp.split('_')
+    isp_info = get_isp_info(province, isp)
+    
+    if not isp_info.get("org"):
+        print(f"{current_time} [{province}{isp}] 未找到匹配的ISP信息")
+        return
 
     try:
-        with open(f'udpsc/{province_isp}.txt', 'r', encoding='utf-8') as file:
-            lines = file.readlines()
-            lines = [line.strip() for line in lines if line.strip()]
+        with open(f'{CONFIG["input_dir"]}/{province_isp}.txt', 'r', encoding='utf-8') as f:
+            data = f.read().strip()
+            if not data:
+                return
 
-        if lines:
-            first_line = lines[0]
-            if "rtp://" in first_line:
-                mcast = first_line.split("rtp://")[1].split(" ")[0]
-                keywords.append(province_isp + "_" + mcast)
-    except FileNotFoundError:
+        mcast = data.split("rtp://")[1].split()[0] if "rtp://" in data else None
+        if not mcast:
+            return
 
-        print(f"文件 '{province_isp}.txt' 不存在. 跳过此文件.")
-
-for keyword in keywords:
-    province, isp, mcast = keyword.split("_")
-
-
-    if province == "北京" and isp == "联通":
-        isp_en = "cucc"
-        org = "China Unicom Beijing Province Network"
-    elif isp == "联通":
-        isp_en = "cucc"
-        org = "CHINA UNICOM China169 Backbone"
-    elif isp == "电信":
-        org = "Chinanet"
-        isp_en = "ctcc"
-    elif isp == "移动":
-        org = "China Mobile communications corporation"
-        isp_en = "cmcc"
+        search_txt = base64.b64encode(
+            f'\"udpxy\" && country=\"CN\" && region=\"{province}\" && org=\"{isp_info["org"]}\"'.encode()
+        ).decode()
         
-#    else:
-#        org = ""
-    
-    current_time = datetime.now()
-    timeout_cnt = 0
-    result_urls = set() 
-    while len(result_urls) == 0 and timeout_cnt <= 5:
-        try:
-            search_url = 'https://fofa.info/result?qbase64='
-            search_txt = f'\"udpxy\" && country=\"CN\" && region=\"{province}\" && org=\"{org}\"'
-            bytes_string = search_txt.encode('utf-8')
-
-            search_txt = base64.b64encode(bytes_string).decode('utf-8')
-            search_url += search_txt
-            print(f"{current_time} 查询运营商 : {province}{isp} ，查询网址 : {search_url}")
-
-            headers = {"referer": "https://www.baidu.com/",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36",
-            "cookie": "_ga=GA1.1.706124435.1725120803; Hm_lvt_4275507ba9b9ea6b942c7a3f7c66da90=1730649235,1732191192; HMACCOUNT=F209405EC9F3D75F; __fcd=N7R0EGFFACH5QSHX05667FFA7BEF95DC; Hm_lpvt_4275507ba9b9ea6b942c7a3f7c66da90=1732450686; _ga_9GWBD260K9=GS1.1.1732450370.48.1.1732450686.0.0.0"
-                      }
-
-            response = requests.get(search_url, headers=headers, timeout=5)
- 
-            response.raise_for_status()
-
-            html_content = response.text
-
-            html_soup = BeautifulSoup(html_content, "html.parser")
-            print(f"{current_time} html_content:{html_content}")
-
-            pattern = r"http://\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+"
-            urls_all = re.findall(pattern, html_content)
-
-            result_urls = set(urls_all)
-            print(f"{current_time} result_urls:{result_urls}")
-
-            valid_ips = []
-
-
-            for url in result_urls:
-                video_url = url + "/rtp/" + mcast
-
-                cap = cv2.VideoCapture(video_url)
-
-                if not cap.isOpened():
-                    print(f"{current_time} {video_url} 无效")
-                else:
-
-                    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    print(f"{current_time} {video_url} 的分辨率为 {width}x{height}")
-
-                    if width > 0 and height > 0:
-                        valid_ips.append(url)
-
-                    cap.release()
-                    
-            if valid_ips:
-
-                rtp_filename = f'udpsc/{province}_{isp}.txt'
-                with open(rtp_filename, 'r', encoding='utf-8') as file:
-                    data = file.read()
-                txt_filename = f'txt_files/{province}{isp}.txt'
-                # 原始代码
-                with open(txt_filename, 'w') as new_file:
-                    for url in valid_ips:
-                        new_data = data.replace("rtp://", f"{url}/rtp/")
-                        new_file.write(new_data)
-
-                # 修改后代码
-                with open(txt_filename, 'w') as new_file:
-                    # 保留原始内容
-                    for url in valid_ips:
-                        new_data = data.replace("rtp://", f"{url}/rtp/")
-                        new_file.write(new_data)
-                    # 新增定制内容
-                    new_file.write("\n# 苏州新闻综合\n")
-                    new_file.write("苏州新闻综合,https://live-auth.51kandianshi.com/szgd/csztv1.m3u8\n")
-                    new_file.write("\n# 苏州社会经济\n")
-                    new_file.write("苏州社会经济,https://live-auth.51kandianshi.com/szgd/csztv2.m3u8\n")
-                    new_file.write("\n# 苏州文化生活\n")
-                    new_file.write("苏州文化生活,https://live-auth.51kandianshi.com/szgd/csztv3.m3u8\n")
-                    new_file.write("\n# 苏州生活资讯\n")
-                    new_file.write("苏州生活资讯,https://live-auth.51kandianshi.com/szgd/csztv5.m3u8\n")
-                    new_file.write("\n# 苏州4K\n")               
-                    new_file.write("苏州4K,https://live-auth.51kandianshi.com/szgd/csztv4k_hd.m3u8\n")
-                       
-                print(f'已生成播放列表，保存至 {txt_filename}')
-
-        except (requests.Timeout, requests.RequestException) as e:
-            timeout_cnt += 1
-            print(f"{current_time} [{province}] 搜索请求发生超时，异常次数：{timeout_cnt}")
-            if timeout_cnt <= 3:
-
+        result_urls = set()
+        for _ in range(CONFIG["max_retries"]):
+            try:
+                response = requests.get(
+                    f'https://fofa.info/result?qbase64={search_txt}',
+                    headers=CONFIG["request_headers"],
+                    timeout=CONFIG["timeout"]
+                )
+                result_urls = set(re.findall(r"http://\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+", response.text))
+                if result_urls:
+                    break
+            except requests.RequestException:
                 continue
-            else:
-                print(f"{current_time} 搜索IPTV频道源[{province}{isp}]，超时次数过多：{timeout_cnt} 次，停止处理")
 
-print('节目表制作完成！ 文件输出在 txt_files 目录下！')
+        valid_urls = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=CONFIG["max_workers"]) as executor:
+            futures = {
+                executor.submit(
+                    validate_stream,
+                    f"{url}/rtp/{mcast}",
+                    CONFIG["timeout"]
+                ): url for url in result_urls
+            }
+            for future in concurrent.futures.as_completed(futures):
+                if future.result():
+                    valid_urls.append(futures[future])
+
+        if valid_urls:
+            new_data = "\n".join([data.replace("rtp://", f"{url}/rtp/") for url in valid_urls])
+            suzhou_channels = """
+# 苏州新闻综合
+苏州新闻综合,https://live-auth.51kandianshi.com/szgd/csztv1.m3u8
+# 苏州社会经济
+苏州社会经济,https://live-auth.51kandianshi.com/szgd/csztv2.m3u8
+# 苏州文化生活
+苏州文化生活,https://live-auth.51kandianshi.com/szgd/csztv3.m3u8
+# 苏州生活资讯
+苏州生活资讯,https://live-auth.51kandianshi.com/szgd/csztv5.m3u8
+# 苏州4K
+苏州4K,https://live-auth.51kandianshi.com/szgd/csztv4k_hd.m3u8
+"""
+            output_path = f'{CONFIG["output_dir"]}/{province}{isp}.txt'
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(new_data + suzhou_channels)
+            print(f"{current_time} 成功生成播放列表：{output_path}")
+
+    except Exception as e:
+        print(f"{current_time} 处理 {province_isp} 时发生错误：{str(e)}")
+
+def main():
+    setup_dirs()
+    
+    provinces_isps = [
+        name.rsplit('.', 1)[0] for name in os.listdir(CONFIG["input_dir"])
+        if name.endswith('.txt') and name.count('_') == 1
+    ]
+    
+    print(f"本次查询：{provinces_isps} 的组播节目")
+    
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.map(process_file, provinces_isps)
+    
+    print('节目表制作完成！文件输出在 txt_files 目录下！')
+
+if __name__ == "__main__":
+    main()
