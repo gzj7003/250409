@@ -31,6 +31,9 @@ jobs:
         run: pip install translate requests 
         
       - name: Run iptv
+        env:
+          SITE_USER: ${{ secrets.SITE_USER }}
+          SITE_PASS: ${{ secrets.SITE_PASS }}
         run: python ${{ github.workspace }}/set/#items.py
          
       - name: Commit results
