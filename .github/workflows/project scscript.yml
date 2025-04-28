@@ -33,13 +33,24 @@ jobs:
     - name: Run main script
       run: python ${{ github.workspace }}/set/#scitems.py
          
-    - name: Commit results
+    - name: Commit and push changes
       run: |
-          git config --local user.email "actions@github.com"
-          git config --local user.name "GitHub Action"
-          if [ -n "$(git status --porcelain)" ]; then
-          git commit -am "Automatic update"
-          git push
-          else
-            echo "No changes detected, skipping commit."
-          fi
+        # 配置 Git 身份
+        git config --local user.email "actions@github.com"
+        git config --local user.name "GitHub Actions"
+    
+        # 同步远程变更
+        git fetch origin
+        git rebase origin/main
+    
+        # 添加并提交变更
+        git add -A
+        if ! git diff-index --quiet HEAD --; then
+          git commit -m "Auto-update: $(date +'%Y-%m-%d %H:%M:%S')"
+          git push origin main
+        else
+          echo "No changes to commit"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
