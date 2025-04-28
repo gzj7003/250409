@@ -1,5 +1,17 @@
 import os
 import requests
+
+session = requests.Session()
+login_url = 'https://fofa.info/login'
+data = {
+    'username': os.getenv('gzj7003@163.com'),
+    'password': os.getenv('abcde123GGG')
+}
+session.post(login_url, data=data)
+
+# 后续请求使用session
+response = session.get('https://fofa.info/login/data')
+
 import re
 import base64
 import cv2
