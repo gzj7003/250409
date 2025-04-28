@@ -2,7 +2,7 @@ name: project zjscript
 
 on:
   schedule:
-  - cron: '01 8,19,23,7 * * *' 
+  - cron: '01 10,21,1,9 * * *' 
   workflow_dispatch:
     分支:
       - main
