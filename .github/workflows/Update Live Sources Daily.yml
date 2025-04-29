@@ -31,8 +31,6 @@ jobs:
           import requests
 
           def generate_live_source():
-              # 原始直播源地址
-              original_url = "https://raw.githubusercontent.com/gzj7003/tvlist/refs/heads/main/txt_files/Susaw.txt"
               # 合并两个原始直播源地址到同一个变量
               original_urls = [
                   "https://raw.githubusercontent.com/gzj7003/tvlist/refs/heads/main/txt_files/Susa.txt",
