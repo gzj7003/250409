@@ -1,51 +1,53 @@
-name: auto
+name: Scheduled Script Execution
 
 on:
   schedule:
-  - cron: '42 14,18,22,2,6,12 * * *'  #6>10>14>18>22>2>4&&&
+    - cron: '42 14,18,22,2,6,12 * * *'
   workflow_dispatch:
-    分支:
-      - main
-      
+    branches: [ main ]
 
-permissions: write-all
+permissions:
+  contents: write  # 更精准的权限控制
+
 jobs:
-  build:
+  execute-script:
     runs-on: ubuntu-latest
- 
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4  # 升级到最新版本
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4  # 升级到最新版本
         with:
-          python-version: 3.x
-      - name: Install numpy          
-        run: pip install 'numpy==1.26.4'
+          python-version: "3.11"  # 明确指定 Python 版本
+
       - name: Install dependencies
-        run: pip install selenium requests futures eventlet
-      - name: Install dependencies
-        run: pip install opencv-python requests 
-      - name: Install dependencies
-        run: pip install Beautifulsoup4 requests 
-      - name: Install dependencies
-        run: pip install translate requests 
-      - name: Install dependencies
-        run: pip install replace
-      - name: Install dependencies
-        run: pip install input
-        
-      - name: Run iptv
-        run: python ${{ github.workspace }}/set/script.py
-         
-      - name: Commit resultsu
         run: |
-            git config --local user.email "actions@github.com"
-            git config --local user.name "GitHub Action"
-            if [ -n "$(git status --porcelain)" ]; then
-            git commit -am "Automatic update"
-            git push  -f
-            else
-              echo "No changes detected, skipping commit."
-            fi
+          pip install --upgrade pip
+          pip install \
+            numpy==1.26.4 \
+            selenium \
+            requests \
+            futures \
+            eventlet \
+            opencv-python \
+            beautifulsoup4 \
+            translate \
+            replace \
+            input
+
+      - name: Execute Script
+        run: python set/script.py  # 简化路径写法
+
+      - name: Commit Results
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add .  # 显式添加所有变更
+          if git diff-index --quiet HEAD --; then
+            echo "No changes detected"
+          else
+            git commit -m "Automatic update"
+            git push
+          fi
