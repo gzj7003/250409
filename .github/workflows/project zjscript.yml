@@ -31,7 +31,7 @@ jobs:
         mkdir -p txt_files
         
     - name: Run main script
-      run: python ${{ github.workspace }}/set/#zjitems.py
+      run: python ${{ github.workspace }}/set/zjitems.py
          
     - name: Commit results
       run: |
