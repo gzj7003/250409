@@ -20,8 +20,8 @@ CCTV17,http://171.213.196.78:4022/rtp/239.93.0.92:5140$四川cmc
 江苏卫视,http://171.213.196.78:4022/rtp/239.93.0.89:5140$四川cmc
 浙江卫视,http://171.213.196.78:4022/rtp/239.93.0.124:5140$四川cmc
 兵团卫视,http://171.213.196.78:4022/rtp/239.93.42.43:5140$四川cmc
-CCTV5+,http://58.38.72.220:9200/rtp/239.45.0.34:5140$上海cmc
-CCTV16,http://58.38.72.220:9200/rtp/239.45.0.10:5140$上海cmc
+CCTV5+,http://58.39.128.46:3333/rtp/239.45.0.34:5140$上海cmc
+CCTV16,http://58.39.128.46:3333/rtp/239.45.0.10:5140$上海cmc
 苏州新闻综合,https://live-auth.51kandianshi.com/szgd/csztv1.m3u8$江苏苏州地方
 苏州社会经济,https://live-auth.51kandianshi.com/szgd/csztv2.m3u8$江苏苏州地方
 苏州文化生活,https://live-auth.51kandianshi.com/szgd/csztv3.m3u8$江苏苏州地方
