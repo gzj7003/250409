@@ -15,3 +15,9 @@ node_vm2
 dukpy
 opencv-python
 aiohttp
+numpy==1.26.4
+selenium
+requests
+futures
+eventlet
+translate
