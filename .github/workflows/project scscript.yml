@@ -31,7 +31,7 @@ jobs:
         mkdir -p txt_files
         
     - name: Run main script
-      run: python ${{ github.workspace }}/set/#scitems.py
+      run: python ${{ github.workspace }}/set/scitems.py
          
     - name: Commit and push changes
       run: |
