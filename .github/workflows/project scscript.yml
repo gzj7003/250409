@@ -27,7 +27,7 @@ jobs:
 
     - name: Create necessary directories
       run: |
-        mkdir -p udpzj
+        mkdir -p udpsc
         mkdir -p txt_files
         
     - name: Run main script
