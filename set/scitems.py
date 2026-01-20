@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
 
-files = os.listdir('udpzj')
+files = os.listdir('udpsc')
 
 files_name = []
 
