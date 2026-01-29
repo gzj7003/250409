@@ -49,7 +49,7 @@ jobs:
       - name: Execute script
         run: |
           cd "${GITHUB_WORKSPACE}" || exit 1
-          python ./set/zjitems.py
+          python ./set/zjitems1.py
       
       - name: Commit and push changes
         env:
