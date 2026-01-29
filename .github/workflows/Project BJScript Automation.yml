@@ -2,7 +2,7 @@ name: Project BJScript Automation
 
 on:
   schedule:
-    - cron: '18 6 * * *'  # 北京时间 UTC+8 对应 10,16,6* 点运行
+    - cron: '18 6,17 * * *' 
   workflow_dispatch:
     inputs:
       branch:
